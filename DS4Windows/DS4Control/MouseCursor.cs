@@ -136,12 +136,10 @@ namespace DS4Windows
                 deltaY = 0;
             }
 
-            double xMotion = deltaX != 0 ? coefficient * (deltaX * tempDouble)
-                + (normX * (offset * signX)) : 0;
+            double xMotion = deltaX != 0 ? coefficient * (deltaX * tempDouble) : 0;
 
             verticalScale = Global.getGyroSensVerticalScale(deviceNumber) * 0.01;
-            double yMotion = deltaY != 0 ? (coefficient * verticalScale) * (deltaY * tempDouble)
-                + (normY * (offset * signY)) : 0;
+            double yMotion = deltaY != 0 ? (coefficient * verticalScale) * (deltaY * tempDouble) : 0;
 
             if (tempInfo.jitterCompensation)
             {
