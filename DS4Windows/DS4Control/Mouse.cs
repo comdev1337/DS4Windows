@@ -363,15 +363,27 @@ namespace DS4Windows
                     }
                 }
             }
-            if (toggleGyroControls)
+            bool useToggle;
+            switch (mode)
+            {
+                case GyroOutMode.Mouse: useToggle = toggleGyroMouse; break;
+                case GyroOutMode.MouseJoystick: useToggle = toggleGyroStick; break;
+                default: useToggle = toggleGyroControls; break;
+            }
+
+            if (useToggle)
             {
                 if (triggeractivated && triggeractivated != previousTriggerActivated)
                 {
-                    currentToggleGyroControls = !currentToggleGyroControls;
+                    if (mode == GyroOutMode.Mouse) currentToggleGyroMouse = !currentToggleGyroMouse;
+                    else if (mode == GyroOutMode.MouseJoystick) currentToggleGyroStick = !currentToggleGyroStick;
+                    else currentToggleGyroControls = !currentToggleGyroControls;
                 }
 
                 previousTriggerActivated = triggeractivated;
-                triggeractivated = currentToggleGyroControls;
+                triggeractivated = mode == GyroOutMode.Mouse ? currentToggleGyroMouse
+                                : mode == GyroOutMode.MouseJoystick ? currentToggleGyroStick
+                                : currentToggleGyroControls;
             }
             else
             {
