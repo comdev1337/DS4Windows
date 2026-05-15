@@ -1,4 +1,4 @@
-﻿/*
+/*
 DS4Windows
 Copyright (C) 2023  Travis Nickles
 
@@ -259,16 +259,25 @@ namespace DS4Windows
             else if (outMode == GyroOutMode.MouseJoystick)
             {
                 s = dev.getCurrentStateRef();
-                Mapping.gyroStickX[deviceNum] = Mapping.gyroStickX[deviceNum] = 128;
+                Mapping.gyroStickX[deviceNum] = 128;
+
+                ArmaController.ObserveTrigger(deviceNum, s.R1);
 
                 var triggerActive = IsGyroTriggerActive(outMode);
+                bool gyroActive = (useReverseRatchet && triggerActive)
+                               || (!useReverseRatchet && !triggerActive);
 
-                if (useReverseRatchet && triggerActive)
-                    SixMouseStick(arg);
-                else if (!useReverseRatchet && !triggerActive)
-                    SixMouseStick(arg);
+                if (gyroActive)
+                {
+                    if (ArmaController.IsGyroFlight(deviceNum))
+                        ArmaController.ProcessGyroFlight(deviceNum, arg.sixAxis);
+                    else
+                        SixMouseStick(arg);
+                }
                 else
+                {
                     SixMouseReset(arg);
+                }
             }
             else if (outMode == GyroOutMode.DirectionalSwipe)
             {
@@ -641,8 +650,19 @@ namespace DS4Windows
                 }
             }
 
-            byte axisXOut = (byte)(xNorm * maxDirX + 128.0);
-            byte axisYOut = (byte)(yNorm * maxDirY + 128.0);
+            bool outputX_ = msinfo.OutputHorizontal();
+            bool outputY_ = msinfo.OutputVertical();
+            byte axisXOut, axisYOut;
+            if (!ArmaController.IntegrateSixMouseStick(
+                    deviceNum, xNorm, yNorm,
+                    Math.Sign(maxDirX), Math.Sign(maxDirY),
+                    arg.sixAxis.elapsed,
+                    outputX_, outputY_,
+                    out axisXOut, out axisYOut))
+            {
+                axisXOut = (byte)(xNorm * maxDirX + 128.0);
+                axisYOut = (byte)(yNorm * maxDirY + 128.0);
+            }
 
             bool outputX = msinfo.OutputHorizontal();
             bool outputY = msinfo.OutputVertical();

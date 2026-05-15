@@ -1,4 +1,4 @@
-﻿/*
+/*
 DS4Windows
 Copyright (C) 2023  Travis Nickles
 
@@ -451,6 +451,13 @@ namespace DS4WinWPF.DS4Forms
             lxOutValLb.Content = mapState.LX;
             lyInValLb.Content = inState.LY;
             lyOutValLb.Content = mapState.LY;
+
+            double lsSensLive = Global.getLSSens(profileDeviceNum)
+                * ArmaController.GetYawBoost(profileDeviceNum);
+            double lsVertLive = Global.LSModInfo[profileDeviceNum].verticalScale * 0.01;
+            lsSensVertLb.Content =
+                $"({lsSensLive.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}, " +
+                $"{lsVertLive.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)})";
 
             rxInValLb.Content = inState.RX;
             rxOutValLb.Content = mapState.RX;

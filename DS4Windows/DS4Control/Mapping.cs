@@ -1,4 +1,4 @@
-﻿/*
+/*
 DS4Windows
 Copyright (C) 2023  Travis Nickles
 
@@ -326,6 +326,8 @@ namespace DS4Windows
 
         public static byte[] gyroStickX = new byte[Global.MAX_DS4_CONTROLLER_COUNT] { 128, 128, 128, 128, 128, 128, 128, 128 };
         public static byte[] gyroStickY = new byte[Global.MAX_DS4_CONTROLLER_COUNT] { 128, 128, 128, 128, 128, 128, 128, 128 };
+        public static byte[] gyroRStickX = new byte[Global.MAX_DS4_CONTROLLER_COUNT] { 128, 128, 128, 128, 128, 128, 128, 128 };
+        public static byte[] gyroRStickY = new byte[Global.MAX_DS4_CONTROLLER_COUNT] { 128, 128, 128, 128, 128, 128, 128, 128 };
         //public static byte[] touchStickX = new byte[Global.MAX_DS4_CONTROLLER_COUNT] { 128, 128, 128, 128, 128, 128, 128, 128 };
         //public static byte[] touchStickY = new byte[Global.MAX_DS4_CONTROLLER_COUNT] { 128, 128, 128, 128, 128, 128, 128, 128 };
         public static PostMapStickData[] mapStickActionData = new PostMapStickData[Global.MAX_DS4_CONTROLLER_COUNT]
@@ -1722,9 +1724,10 @@ namespace DS4Windows
             if (lsMod.deadzoneType == StickDeadZoneInfo.DeadZoneType.Radial)
             {
                 double lsSens = getLSSens(device);
-                if (lsSens != 1.0)
+                double yawBoost = ArmaController.GetYawBoost(device);
+                if (lsSens != 1.0 || yawBoost != 1.0)
                 {
-                    dState.LX = (byte)Global.Clamp(0, lsSens * (dState.LX - 128.0) + 128.0, 255);
+                    dState.LX = (byte)Global.Clamp(0, (lsSens * yawBoost) * (dState.LX - 128.0) + 128.0, 255);
                     dState.LY = (byte)Global.Clamp(0, lsSens * (dState.LY - 128.0) + 128.0, 255);
                 }
             }
@@ -2765,6 +2768,9 @@ namespace DS4Windows
 
             outputfieldMapping.PopulateState(MappedState);
 
+            ArmaController.OverrideTriggers(device, cState, MappedState);
+            ArmaController.UpdateHaptics(device, ctrl);
+
             if (macroCount > 0)
             {
                 if (macroControl[00]) MappedState.Cross = true;
@@ -3098,6 +3104,25 @@ namespace DS4Windows
                     // Don't reset Mouse Joystick output coords here
                     //gyroTempX = gyroTempY = 128;
                 }
+            }
+
+            // GyroFlight RS merge: gyroRStickX/Y → MappedState.RX/RY
+            ref byte gyroRX = ref gyroRStickX[device];
+            if (gyroRX != 128)
+            {
+                byte existing = MappedState.RX;
+                byte val = Math.Abs(gyroRX - 128) > Math.Abs(existing - 128) ? gyroRX : existing;
+                MappedState.RX = val;
+                gyroRX = 128;
+            }
+
+            ref byte gyroRY = ref gyroRStickY[device];
+            if (gyroRY != 128)
+            {
+                byte existing = MappedState.RY;
+                byte val = Math.Abs(gyroRY - 128) > Math.Abs(existing - 128) ? gyroRY : existing;
+                MappedState.RY = val;
+                gyroRY = 128;
             }
         }
 
