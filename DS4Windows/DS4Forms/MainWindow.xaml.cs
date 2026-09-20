@@ -27,6 +27,7 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Microsoft.Win32;
 using System.Windows.Interop;
 using System.Diagnostics;
@@ -63,6 +64,7 @@ namespace DS4WinWPF.DS4Forms
         private LogViewModel logvm;
         private ControllerListViewModel conLvViewModel;
         private TrayIconViewModel trayIconVM;
+        private DispatcherTimer trayIconRetryTimer;
         private SettingsViewModel settingsWrapVM;
         private IntPtr regHandle = new IntPtr();
         private bool showAppInTaskbar = false;
@@ -134,19 +136,16 @@ namespace DS4WinWPF.DS4Forms
             if (parent != null)
             {
                 parent.Children.Remove(notifyIcon);
-                // Since Loaded event will not get fired from Window, need to
-                // create the tray icon explicitly here
-                try
-                {
-                    // Loaded event handler has enablesEfficiencyMode default to false so
-                    // do the same here
-                    notifyIcon.ForceCreate(enablesEfficiencyMode: false);
-                }
-                catch (Exception)
-                {
-                    // Ignore exception
-                }
             }
+
+            // Scheduled tasks can start before Explorer's notification area is ready.
+            // Loaded will not fire for the detached icon, so retry registration ourselves.
+            trayIconRetryTimer = new DispatcherTimer(DispatcherPriority.Background, Dispatcher)
+            {
+                Interval = TimeSpan.FromSeconds(2)
+            };
+            trayIconRetryTimer.Tick += TryCreateNotifyIcon;
+            TryCreateNotifyIcon(this, EventArgs.Empty);
 
             startMinimized = Global.StartMinimized || parser.Mini;
 
@@ -185,6 +184,29 @@ namespace DS4WinWPF.DS4Forms
             timerThread.Start();
             // Wait for thread tasks to finish before continuing
             timerThread.Join();
+        }
+
+        private void TryCreateNotifyIcon(object sender, EventArgs e)
+        {
+            if (notifyIcon == null || notifyIcon.IsDisposed || notifyIcon.IsCreated)
+            {
+                trayIconRetryTimer.Stop();
+                return;
+            }
+
+            try
+            {
+                notifyIcon.ForceCreate(enablesEfficiencyMode: false);
+                trayIconRetryTimer.Stop();
+            }
+            catch (Exception ex)
+            {
+                if (!trayIconRetryTimer.IsEnabled)
+                {
+                    AppLogger.LogToGui($"Could not create the tray icon. Retrying until the notification area is ready. {ex}", true);
+                    trayIconRetryTimer.Start();
+                }
+            }
         }
 
         public void LateChecks(ArgumentParser parser)
@@ -1033,6 +1055,9 @@ Suspend support not enabled.", true);
             autoProfilesTimer.Stop();
             //autoProfileHolder.Save();
             Util.UnregisterNotify(regHandle);
+
+            trayIconRetryTimer.Stop();
+            trayIconRetryTimer.Tick -= TryCreateNotifyIcon;
 
             // Attempt to dispose of notify icon early
             if (notifyIcon != null)
